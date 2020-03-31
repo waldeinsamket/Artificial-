@@ -1,0 +1,245 @@
+import random,pygame,sys
+from pygame.locals import*
+
+#屏幕每秒刷新的频率(帧速率)是指程序每秒在屏幕上绘制图像的数目
+FPS = 15
+#窗口宽度
+WINDOWWIDTH = 640
+#窗口高度
+WINDOWHEIGHT = 480
+#单独一个格子的尺寸
+CELLSIZE = 20
+#保证屏幕与贪吃蛇的大小是整数倍
+assert WINDOWWIDTH%CELLSIZE == 0
+assert WINDOWHEIGHT%CELLSIZE == 0
+CELLWIDTH = int(WINDOWWIDTH / CELLSIZE)
+CELLHEIGHT = int(WINDOWHEIGHT / CELLSIZE)
+
+#颜色
+KYE = (238,230,133)
+LYELLOW = (255,255,224)
+
+WHITE = (255,248,220)
+BLACK = (28,28,28)
+
+ORED = (255,69,0)
+ORG = (255,165,0)
+GREEN = (0,255,0)
+DARKGREEN = (0,139,69)
+
+LOAY = (139,139,131)
+GRAY = (105,105,105)
+DARKGRAY = (54,54,54)
+BGCOLOR = WHITE
+
+#方向
+UP = 'up'
+DOWN = 'down'
+LEFT = 'left'
+RIGHT = 'right'
+#头部
+HEAD = 0
+
+#主函数
+def main():
+    global FPSCLOCK,DISPLAYSURF,BASICFONT
+
+    pygame.init()
+    #获得pygame的时钟(确定程序要以多少最大的帧速率运行)
+    FPSCLOCK = pygame.time.Clock()
+    #初始化界面
+    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH,WINDOWHEIGHT))
+    #绘制文字  （字体文件的文件名，字体）
+    BASICFONT = pygame.font.SysFont('华文琥珀',18)
+    #设置标题
+    pygame.display.set_caption('贪吃蛇大作战')
+    #开始游戏界面
+    showStartScreen()
+    while True:
+        runGame()
+        showGameOverScreen()
+
+def runGame():
+    #随机选择开始点（不要太靠近窗口边缘）
+    startx = random.randint(5,CELLWIDTH - 6)
+    starty = random.randint(5,CELLHEIGHT - 6)
+    #贪吃蛇原本长度为3，方向默认向右
+    snake = [{'x':startx,'y':starty},
+             {'x':startx-1,'y':starty},
+             {'x':startx-2,'y':starty}]
+    direction = RIGHT
+
+    #随机产生树莓
+    raspberry = getRandomLocation()
+    while True:
+        for event in pygame.event.get():
+            #退出即终止
+            if event.type==QUIT:
+                terminate()
+            elif event.type == KEYDOWN:
+                #不是往右的时候，才能往左（改变方向），其他同理
+                if(event.key == K_LEFT or event.key == K_a) and direction != RIGHT:
+                    direction = LEFT
+                elif(event.key == K_RIGHT or event.key == K_d) and direction != LEFT:
+                    direction = RIGHT
+                elif(event.key == K_UP or event.key == K_w) and direction != DOWN:
+                    direction = UP
+                elif (event.key == K_DOWN or event.key == K_s) and direction != UP:
+                    direction = DOWN
+                elif event.key == K_ESCAPE:
+                    terminate()
+        #是否碰壁或撞到自己
+        if snake[HEAD]['x']==-1 or  snake[HEAD]['x']==CELLWIDTH or snake[HEAD]['y']==-1 or snake[HEAD]['y']==CELLHEIGHT:
+             return
+        for snakeBody in snake[1:] :
+            if snakeBody['x']==snake[HEAD]['x'] and snakeBody['y']==snake[HEAD]['y']:
+                return
+        #是否吃到树莓(坐标是否相等）
+        if snake[HEAD]['x'] == raspberry['x'] and snake[HEAD]['y'] == raspberry['y']:
+            raspberry=getRandomLocation()
+        else :
+            del snake[-1]
+        #贪吃蛇的移动效果：去尾加头
+        if direction == UP:
+            newHEAD = {'x':snake[HEAD]['x'],'y':snake[HEAD]['y']-1}
+        elif direction == DOWN:
+            newHEAD = {'x': snake[HEAD]['x'], 'y': snake[HEAD]['y']+1}
+        elif direction == LEFT:
+            newHEAD = {'x': snake[HEAD]['x']-1, 'y': snake[HEAD]['y']}
+        elif direction == RIGHT:
+            newHEAD = {'x': snake[HEAD]['x']+1, 'y': snake[HEAD]['y']}
+        snake.insert(0,newHEAD)
+        #绘制屏幕
+        DISPLAYSURF.fill(BGCOLOR)
+        drawGrid()
+        drawSnake(snake)
+        drawberry(raspberry)
+        drawScore(len(snake)-3)
+        #执行这个函数来让我们绘制的东西显示在屏幕上
+        pygame.display.update()
+        #用tick对象来让计算机知道要在每一次迭代后暂停多少时间（贪吃蛇的速度
+        FPSCLOCK.tick(FPS/4)
+
+def checkForKeyPress():
+    if len(pygame.event.get(QUIT)) > 0:
+        terminate()
+    keyUpEvents = pygame.event.get(KEYUP)
+    if len(keyUpEvents) == 0:
+        return None
+    if keyUpEvents[0].key == K_ESCAPE:
+        terminate()
+    return keyUpEvents[0].key
+
+#开始游戏界面
+def showStartScreen():
+    titleFont = pygame.font.SysFont('华文琥珀',90)
+    titleSurf1 = titleFont.render('贪吃蛇',True,KYE,LYELLOW)
+    titleSurf2 = titleFont.render('贪吃蛇',True,LOAY)
+
+    degrees1 = 0
+    degrees2 = 0
+    while True:
+        DISPLAYSURF.fill(BGCOLOR)
+        #旋转图像titleSurf1
+        rotatedSurf1 = pygame.transform.rotate(titleSurf1,degrees1)
+        rotatedRect1 = rotatedSurf1.get_rect()
+        rotatedRect1.center = (WINDOWWIDTH/3,WINDOWHEIGHT/2)
+        DISPLAYSURF.blit(rotatedSurf1,rotatedRect1)
+        #旋转图像titleSurf2
+        rotatedSurf2 = pygame.transform.rotate(titleSurf2,degrees2)
+        rotatedRect2 = rotatedSurf1.get_rect()
+        rotatedRect2.center = (425,295)
+        DISPLAYSURF.blit(rotatedSurf2,rotatedRect2)
+        showScore()
+        #开始游戏
+        i1 = pygame.image.load("./image1.png")
+        DISPLAYSURF.blit(i1, [220, 30])
+        i1.convert()
+        pygame.display.flip()
+        for event in pygame.event.get():  # 获得事件
+            if event.type == pygame.MOUSEBUTTONDOWN and 220 <= event.pos[0] <= 400 and 30 <= event.pos[1] <= 80 :
+                # 判断鼠标位置以及是否摁了下去。
+               return
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+        degrees1 += 3
+        degrees2 += 7
+
+
+#退出游戏
+def  terminate():
+    pygame.quit()
+    sys.exit()
+
+#结束游戏界面
+def showGameOverScreen():
+
+    gameOverFont = pygame.font.SysFont('华文琥珀',100)
+    gameSurf = gameOverFont.render('Game  Over',True,DARKGRAY)
+    gameRect = gameSurf.get_rect()
+    gameRect.midtop = (WINDOWWIDTH/2,180)
+
+    DISPLAYSURF.blit(gameSurf,gameRect)
+    pygame.display.update()
+    pygame.time.wait(500)# 500毫秒，也就是半秒
+    checkForKeyPress()# 清空事件队列中的任何按键
+
+    while True:
+        if checkForKeyPress():
+            pygame.event.get()# 清空事件队列
+            return
+
+
+#网格布线
+def drawGrid():
+    for x in range(0,WINDOWWIDTH,CELLSIZE):# 水平布线
+        pygame.draw.line(DISPLAYSURF,LYELLOW,(x,0),(x,WINDOWHEIGHT))
+    for y in range(0,WINDOWHEIGHT,CELLSIZE):#垂直布线
+        pygame.draw.line(DISPLAYSURF,LYELLOW,(0,y),(WINDOWWIDTH,y))
+
+#画贪吃蛇
+def drawSnake(snake):
+    x = snake[HEAD] ['x']* CELLSIZE
+    y = snake[HEAD] ['y']* CELLSIZE
+    snakeRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
+    pygame.draw.rect(DISPLAYSURF, DARKGREEN, snakeRect)
+    snakeiRect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
+    pygame.draw.rect(DISPLAYSURF, GREEN, snakeiRect)
+    for s in snake[1:]:
+        x = s['x']*CELLSIZE
+        y = s['y']*CELLSIZE
+        snakeRect = pygame.Rect(x,y,CELLSIZE,CELLSIZE)
+        pygame.draw.rect(DISPLAYSURF,DARKGREEN,snakeRect)
+        snakeiRect = pygame.Rect(x + 7, y + 7, CELLSIZE - 12, CELLSIZE - 12)
+        pygame.draw.rect(DISPLAYSURF, GREEN, snakeiRect)
+#画树莓
+def drawberry(berry):
+    x = berry['x']*CELLSIZE
+    y = berry['y']*CELLSIZE
+    berryRect = pygame.Rect(x,y,CELLSIZE,CELLSIZE)
+    pygame.draw.rect(DISPLAYSURF,ORG,berryRect)
+    berryiRect = pygame.Rect(x + 6, y + 6, CELLSIZE - 12, CELLSIZE - 12)
+    pygame.draw.rect(DISPLAYSURF,ORED, berryiRect)
+
+def getRandomLocation():
+    #窗口内的随机点
+    return {'x':random.randint(0,CELLWIDTH-1),'y':random.randint(0,CELLHEIGHT - 1)}
+#显示得分
+def drawScore(score):
+    scoreSurf = BASICFONT.render('Score:%s'%(score),True,GRAY)
+    scoreRect = scoreSurf.get_rect()
+    scoreRect.topleft = (40,10)
+    DISPLAYSURF.blit(scoreSurf,scoreRect)
+
+#查询最高得分
+def showScore():
+    file = open('max.txt', mode='r')
+    score=file.read()
+    pressFont = pygame.font.SysFont('华文琥珀', 20)
+    pressKeySurf = pressFont.render('最高纪录:%s'%score,True, (193, 205, 205))
+    pressKeyRect = pressKeySurf.get_rect()  # 获取字符串所在位置
+    pressKeyRect.topleft = (500, 440)
+    DISPLAYSURF.blit(pressKeySurf, pressKeyRect)  # blit绘制
+
+if __name__=='__main__':
+    main()
