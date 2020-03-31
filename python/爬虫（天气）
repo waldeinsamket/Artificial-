@@ -1,0 +1,68 @@
+爬虫程序文件：
+# -*- coding: utf-8 -*-
+import scrapy
+from re import findall
+from urllib.request import urlopen
+from demo1.items import  Demo1Item
+
+class EverycityinsdPySpider(scrapy.Spider):
+    name = 'everyCityinSD.py'
+    allowed_domains = ['www.weather.com.cn']
+    start_urls = []
+    url = r'http://www.weather.com.cn/fujian/index.shtml'
+    with urlopen(url) as fp:
+        contents = fp.read().decode()
+    pattern = '<a title=".*?" href="(.+?)" target="_blank">(.+?)</a>'
+    for url in findall(pattern, contents):
+        start_urls.append(url[0])
+
+    def parse(self, response):
+
+       #处理每个城市的天气预报页面数据
+       item = Demo1Item()
+       city = response.xpath('//div[@class="crumbs fl"]//a[last()]/text()').extract()[0]
+       item['city'] = city
+
+       # 每个页面只有一个城市的天气数据，直接取[0]
+       selector = response.xpath('//ul[@class="t clearfix"]')[0]
+
+       # 存放天气数据
+       weather = ''
+       for li in selector.xpath('./li'):
+           date = li.xpath('./h1//text()').extract()[0]
+           cloud = li.xpath('./p[@title]//text()').extract()[0]
+           high = li.xpath('./p[@class="tem"]//span//text()').extract()[0]
+           low = li.xpath('./p[@class="tem"]//i//text()').extract()[0]
+           wind = li.xpath('./p[@class="win"]//em//span[1]/@title').extract()[0]
+           wind = wind + li.xpath('./p[@class="win"]//i//text()').extract()[0]
+
+           weather = weather + date+':'+cloud+','+high+r'/'+low+','+wind+'\n'
+       item['weather'] = weather
+       return [item]
+    说明要爬取的内容：
+import scrapy
+class Demo1Item(scrapy.Item):
+    # define the fields for your item here like:
+    # name = scrapy.Field()
+    city = scrapy.Field()
+    weather = scrapy.Field()
+    pass
+处理爬取到的内容：
+class Demo1Pipeline(object):
+    def process_item(self, item, spider):
+        with open('weather.txt', 'a', encoding='utf8') as fp:
+            fp.write(item['city'] + '\n')
+            fp.write(item['weather'] + '\n\n')
+        return item
+爬虫配置文件：
+# Automatically created by: scrapy startproject
+#
+# For more information about the [deploy] section see:
+# https://scrapyd.readthedocs.io/en/latest/deploy.html
+
+[settings]
+default = demo1.settings
+
+[deploy]
+#url = http://localhost:6800/
+project = demo1
